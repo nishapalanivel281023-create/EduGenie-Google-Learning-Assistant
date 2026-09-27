@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduGenie — AI Learning Assistant</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+</head>
+<body>
+  <main class="container">
+    <header class="hero">
+      <div class="badge">AI Learning Assistant</div>
+      <h1>EduGenie</h1>
+      <p>Ask, understand, practise, summarize, and build your learning path.</p>
+    </header>
+
+    <section class="card">
+      <label for="task">Choose a task</label>
+      <select id="task">
+        <option value="qa">Ask a Question</option>
+        <option value="explain">Explain a Topic</option>
+        <option value="quiz">Generate Quiz</option>
+        <option value="summarize">Summarize</option>
+        <option value="learn">Learning Path</option>
+      </select>
+
+      <label for="inputText" id="inputLabel">Your question</label>
+      <textarea id="inputText" rows="9"
+        placeholder="Example: What is the largest ocean?"></textarea>
+
+      <button id="submitBtn">Generate</button>
+      <p id="status" class="status" aria-live="polite"></p>
+    </section>
+
+    <section class="card result-card">
+      <div class="result-heading">
+        <h2>Result</h2>
+        <button id="copyBtn" class="secondary" type="button">Copy</button>
+      </div>
+      <div id="result" class="result" aria-live="polite">
+        Your result will appear here.
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const task = document.getElementById("task");
+    const inputText = document.getElementById("inputText");
+    const inputLabel = document.getElementById("inputLabel");
+    const submitBtn = document.getElementById("submitBtn");
+    const status = document.getElementById("status");
+    const result = document.getElementById("result");
+    const copyBtn = document.getElementById("copyBtn");
+
+    const config = {
+      qa: {
+        label: "Your question",
+        placeholder: "Example: What is the largest ocean?",
+        button: "Answer"
+      },
+      explain: {
+        label: "Topic to explain",
+        placeholder: "Example: Explain photosynthesis for a beginner.",
+        button: "Explain"
+      },
+      quiz: {
+        label: "Topic or passage",
+        placeholder: "Paste a topic or study passage here...",
+        button: "Generate Quiz"
+      },
+      summarize: {
+        label: "Text to summarize",
+        placeholder: "Paste a long educational passage here...",
+        button: "Summarize"
+      },
+      learn: {
+        label: "Topic for your learning path",
+        placeholder: "Example: SQL from beginner to advanced",
+        button: "Build Path"
+      }
+    };
+
+    task.addEventListener("change", updateUI);
+    updateUI();
+
+    function updateUI() {
+      const c = config[task.value];
+      inputLabel.textContent = c.label;
+      inputText.placeholder = c.placeholder;
+      submitBtn.textContent = c.button;
+    }
+
+    function escapeHTML(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function renderText(text) {
+      return escapeHTML(text).replace(/\n/g, "<br>");
+    }
+
+    function renderQuiz(data) {
+      const questions = data.questions || [];
+      return questions.map((q, i) => {
+        const options = q.options.map((option, j) =>
+          `<li><strong>${String.fromCharCode(65 + j)}.</strong> ${escapeHTML(option)}</li>`
+        ).join("");
+
+        return `
+          <article class="quiz-question">
+            <h3>${i + 1}. ${escapeHTML(q.question)}</h3>
+            <ol type="A">${options}</ol>
+            <details>
+              <summary>Show answer</summary>
+              <p><strong>${String.fromCharCode(65 + q.correct_answer)}</strong> — ${escapeHTML(q.explanation)}</p>
+            </details>
+          </article>
+        `;
+      }).join("");
+    }
+
+    submitBtn.addEventListener("click", async () => {
+      const text = inputText.value.trim();
+      if (!text) {
+        status.textContent = "Please enter some text first.";
+        return;
+      }
+
+      submitBtn.disabled = true;
+      status.textContent = "EduGenie is thinking...";
+      result.innerHTML = "";
+
+      const endpoint = {
+        qa: "/qa",
+        explain: "/explain",
+        quiz: "/quiz",
+        summarize: "/summarize",
+        learn: "/learn/recommendations"
+      }[task.value];
+
+      const body = task.value === "qa"
+        ? { question: text }
+        : task.value === "explain"
+          ? { topic: text }
+          : { text };
+
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Request failed.");
+        }
+
+        if (task.value === "qa") {
+          result.innerHTML = renderText(data.answer);
+        } else if (task.value === "explain") {
+          result.innerHTML = renderText(data.explanation);
+        } else if (task.value === "quiz") {
+          result.innerHTML = renderQuiz(data);
+        } else if (task.value === "summarize") {
+          result.innerHTML = renderText(data.summary);
+        } else {
+          result.innerHTML = renderText(data.learning_path);
+        }
+
+        status.textContent = "Done.";
+      } catch (error) {
+        result.innerHTML = `<p class="error">${escapeHTML(error.message)}</p>`;
+        status.textContent = "Something went wrong.";
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+
+    copyBtn.addEventListener("click", async () => {
+      const text = result.innerText.trim();
+      if (!text) return;
+      await navigator.clipboard.writeText(text);
+      status.textContent = "Result copied.";
+    });
+  </script>
+</body>
+</html>
