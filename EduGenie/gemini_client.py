@@ -22,7 +22,7 @@ def get_client():
 def generate_text(prompt: str, *, temperature: float = 0.3) -> str:
     client = get_client()
     model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
-    
+
     config = types.GenerateContentConfig(
         temperature=temperature,
         system_instruction=(
@@ -32,7 +32,8 @@ def generate_text(prompt: str, *, temperature: float = 0.3) -> str:
         ),
     )
 
-    max_retries = 3
+    max_retries = 5
+    delay = 2
     for attempt in range(max_retries):
         try:
             response = client.models.generate_content(
@@ -45,9 +46,9 @@ def generate_text(prompt: str, *, temperature: float = 0.3) -> str:
                 raise RuntimeError("Gemini returned an empty response.")
             return text.strip()
         except Exception as e:
-            # 503 UNAVAILABLE or temporary spike vandha 2 seconds wait panni retry pannum
             if ("503" in str(e) or "UNAVAILABLE" in str(e)) and attempt < max_retries - 1:
-                time.sleep(2)
+                time.sleep(delay)
+                delay *= 2  # 2s -> 4s -> 8s -> 16s wait pannum
                 continue
             raise e
 
@@ -55,7 +56,7 @@ def generate_text(prompt: str, *, temperature: float = 0.3) -> str:
 def generate_json(prompt: str, schema: dict):
     client = get_client()
     model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
-    
+
     config = types.GenerateContentConfig(
         temperature=0.2,
         response_mime_type="application/json",
@@ -66,7 +67,8 @@ def generate_json(prompt: str, schema: dict):
         ),
     )
 
-    max_retries = 3
+    max_retries = 5
+    delay = 2
     for attempt in range(max_retries):
         try:
             response = client.models.generate_content(
@@ -80,6 +82,7 @@ def generate_json(prompt: str, schema: dict):
             return text.strip()
         except Exception as e:
             if ("503" in str(e) or "UNAVAILABLE" in str(e)) and attempt < max_retries - 1:
-                time.sleep(2)
+                time.sleep(delay)
+                delay *= 2
                 continue
             raise e
