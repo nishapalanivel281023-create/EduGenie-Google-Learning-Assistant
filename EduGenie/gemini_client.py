@@ -20,7 +20,7 @@ def get_client():
 
 def generate_text(prompt: str, *, temperature: float = 0.3) -> str:
     client = get_client()
-    model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 
     response = client.models.generate_content(
         model=model,
@@ -43,7 +43,7 @@ def generate_text(prompt: str, *, temperature: float = 0.3) -> str:
 
 def generate_json(prompt: str, schema: dict):
     client = get_client()
-    model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 
     response = client.models.generate_content(
         model=model,
